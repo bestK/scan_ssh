@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/bestk/scan_ssh/pkg/version"
 )
 
 // 获取本地IP前缀
@@ -126,7 +128,9 @@ func main() {
 	fmt.Println("         SSH服务扫描器 v1.0")
 	fmt.Println("====================================")
 	fmt.Printf(" 作者: https://github.com/bestk/scanssh\n")
-	fmt.Printf(" 时间: %s\n", time.Now().Format("2006-01-02 15:04:05"))
+	fmt.Printf(" 时间: %s\n", version.BuildTime)
+	fmt.Printf(" 版本: %s\n", version.Version)
+	fmt.Printf(" HASH: %s\n", version.CommitHash)
 	fmt.Println("====================================")
 
 	// 获取本地IP前缀

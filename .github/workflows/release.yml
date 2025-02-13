@@ -24,9 +24,17 @@ jobs:
                   go-version: '1.22'
                   cache: true
 
+            - name: Install Cross Compilers
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y gcc-multilib gcc-mingw-w64 gcc-aarch64-linux-gnu
+
             - name: Build Multi-Platform Binaries
               run: |
                   VERSION=${GITHUB_REF#refs/tags/}
+                  if [ -z "$VERSION" ]; then
+                      VERSION=$(git describe --tags --always)
+                  fi
                   BUILD_TIME=$(date -u '+%Y-%m-%d %H:%M:%S')
                   GIT_COMMIT=$(git rev-parse --short HEAD)
 
@@ -48,57 +56,43 @@ jobs:
                       )
                   fi
 
-                  build_platform() {
-                      platform=$1
-                      platform_split=(${platform//\// })
-                      GOOS=${platform_split[0]}
-                      GOARCH=${platform_split[1]}
-                      
-                      case "${GOOS}_${GOARCH}" in
-                          "windows_amd64")
-                              CC="x86_64-w64-mingw32-gcc"
-                              ;;
-                          "windows_386")
-                              CC="i686-w64-mingw32-gcc"
-                              ;;
-                          "linux_amd64")
-                              CC="gcc"
-                              ;;
-                          "linux_arm64")
-                              CC="aarch64-linux-gnu-gcc"
-                              ;;
-                          "linux_386")
-                              CC="gcc -m32"
-                              ;;
-                      esac
-
+                  for platform in "${platforms[@]}"; do
+                      GOOS=${platform%/*}
+                      GOARCH=${platform#*/}
                       output_name="scan_ssh-${GOOS}-${GOARCH}-${VERSION}"
-                      [ $GOOS = "windows" ] && output_name="${output_name}.exe"
+                      [ "$GOOS" = "windows" ] && output_name="${output_name}.exe"
 
                       echo "Building for ${GOOS}/${GOARCH}..."
                       
-                      CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH CC=$CC go build \
-                        -trimpath \
-                        -ldflags "-s -w \
-                                -X 'github.com/bestk/scan_ssh/pkg/version.Version=${VERSION}' \
-                                -X 'github.com/bestk/scan_ssh/pkg/version.CommitHash=${GIT_COMMIT}' \
-                                -X 'github.com/bestk/scan_ssh/pkg/version.BuildTime=${BUILD_TIME}'" \
-                        -o "build/$output_name" ./*.go
+                      EXTRA_FLAGS=""
+                      if [ "$GOOS" = "linux" ] && [ "$GOARCH" = "386" ]; then
+                          EXTRA_FLAGS="-buildmode=pie"
+                      fi
+
+                      CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build \
+                          -trimpath \
+                          $EXTRA_FLAGS \
+                          -ldflags "-s -w \
+                              -X 'github.com/bestk/scan_ssh/pkg/version.Version=${VERSION}' \
+                              -X 'github.com/bestk/scan_ssh/pkg/version.CommitHash=${GIT_COMMIT}' \
+                              -X 'github.com/bestk/scan_ssh/pkg/version.BuildTime=${BUILD_TIME}'" \
+                          -o "build/$output_name" .
 
                       if [ $? -ne 0 ]; then
                           echo "Build failed for ${GOOS}/${GOARCH}"
                           exit 1
                       fi
 
-                      [ $GOOS = "linux" ] && strip "build/$output_name"
-                  }
-
-                  for platform in "${platforms[@]}"; do
-                      build_platform "$platform"
+                      if [ "$GOOS" = "linux" ]; then
+                          if command -v strip >/dev/null 2>&1; then
+                              strip "build/$output_name" || true
+                          fi
+                      fi
                   done
 
             - name: Create Release
               uses: softprops/action-gh-release@v1
+              if: startsWith(github.ref, 'refs/tags/')
               with:
                   files: build/*
               env:
