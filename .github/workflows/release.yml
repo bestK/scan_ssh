@@ -1,0 +1,101 @@
+name: Release Build
+
+on:
+    release:
+        types: [created]
+    workflow_dispatch:
+        inputs:
+            platform:
+                description: '构建平台 (例如: windows/amd64, linux/arm64)'
+                required: false
+                type: string
+
+jobs:
+    release:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Set up Go
+              uses: actions/setup-go@v4
+              with:
+                  go-version: '1.22'
+                  cache: true
+
+            - name: Install Cross Compilers
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y gcc-multilib gcc-mingw-w64 gcc-aarch64-linux-gnu
+
+            - name: Build Multi-Platform Binaries
+              run: |
+                  VERSION=${GITHUB_REF#refs/tags/}
+                  BUILD_TIME=$(date -u '+%Y-%m-%d %H:%M:%S')
+                  GIT_COMMIT=$(git rev-parse --short HEAD)
+
+                  mkdir -p build
+
+                  if [ -n "${{ github.event.inputs.platform }}" ]; then
+                      platforms=("${{ github.event.inputs.platform }}")
+                  else
+                      platforms=(
+                          "windows/amd64"
+                          "windows/386"
+                          "linux/amd64"
+                          "linux/arm64"
+                          "linux/386"
+                      )
+                  fi
+
+                  build_platform() {
+                      platform=$1
+                      platform_split=(${platform//\// })
+                      GOOS=${platform_split[0]}
+                      GOARCH=${platform_split[1]}
+                      
+                      case "${GOOS}_${GOARCH}" in
+                          "windows_amd64")
+                              CC="x86_64-w64-mingw32-gcc"
+                              ;;
+                          "windows_386")
+                              CC="i686-w64-mingw32-gcc"
+                              ;;
+                          "linux_amd64")
+                              CC="gcc"
+                              ;;
+                          "linux_arm64")
+                              CC="aarch64-linux-gnu-gcc"
+                              ;;
+                          "linux_386")
+                              CC="gcc -m32"
+                              ;;
+                      esac
+
+                      output_name="scan_ssh-${GOOS}-${GOARCH}-${VERSION}"
+                      [ $GOOS = "windows" ] && output_name="${output_name}.exe"
+
+                      echo "Building for ${GOOS}/${GOARCH}..."
+                      
+                      CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH CC=$CC go build \
+                        -trimpath \
+                        -ldflags "-s -w \
+                                -X 'github.com/bestk/scan_ssh/pkg/version.Version=${VERSION}' \
+                                -X 'github.com/bestk/scan_ssh/pkg/version.CommitHash=${GIT_COMMIT}' \
+                                -X 'github.com/bestk/scan_ssh/pkg/version.BuildTime=${BUILD_TIME}'" \
+                        -o "build/$output_name" ./cmd
+
+                      [ $GOOS = "linux" ] && strip "build/$output_name"
+                  }
+
+                  for platform in "${platforms[@]}"; do
+                      build_platform "$platform"
+                  done
+
+            - name: Create Release
+              uses: softprops/action-gh-release@v1
+              with:
+                  files: build/*
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

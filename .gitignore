@@ -1,0 +1,48 @@
+# 编译后的二进制文件和构建目录
+/build/
+/bin/
+/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# 测试二进制文件
+*.test
+
+# 输出文件
+*.out
+*.log
+ssh_available_*.txt
+
+# IDE 相关文件
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Go 特定文件
+/vendor/
+/go.work
+
+# 依赖目录
+/node_modules/
+
+# 环境变量文件
+.env
+.env.local
+.env.*.local
+
+# 临时文件
+/temp/
+/tmp/
+
+# 调试文件
+debug
+__debug_bin
+
+# 覆盖率报告
+coverage.txt
+coverage.html 
