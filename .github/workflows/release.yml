@@ -24,11 +24,6 @@ jobs:
                   go-version: '1.22'
                   cache: true
 
-            - name: Install Cross Compilers
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y gcc-multilib gcc-mingw-w64 gcc-aarch64-linux-gnu
-
             - name: Build Multi-Platform Binaries
               run: |
                   VERSION=${GITHUB_REF#refs/tags/}
