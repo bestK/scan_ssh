@@ -30,6 +30,10 @@ jobs:
                   BUILD_TIME=$(date -u '+%Y-%m-%d %H:%M:%S')
                   GIT_COMMIT=$(git rev-parse --short HEAD)
 
+                  echo "Version: $VERSION"
+                  echo "Build Time: $BUILD_TIME"
+                  echo "Git Commit: $GIT_COMMIT"
+
                   mkdir -p build
 
                   if [ -n "${{ github.event.inputs.platform }}" ]; then
@@ -79,7 +83,12 @@ jobs:
                                 -X 'github.com/bestk/scan_ssh/pkg/version.Version=${VERSION}' \
                                 -X 'github.com/bestk/scan_ssh/pkg/version.CommitHash=${GIT_COMMIT}' \
                                 -X 'github.com/bestk/scan_ssh/pkg/version.BuildTime=${BUILD_TIME}'" \
-                        -o "build/$output_name" ./main.go
+                        -o "build/$output_name" ./*.go
+
+                      if [ $? -ne 0 ]; then
+                          echo "Build failed for ${GOOS}/${GOARCH}"
+                          exit 1
+                      fi
 
                       [ $GOOS = "linux" ] && strip "build/$output_name"
                   }
