@@ -27,7 +27,7 @@ jobs:
             - name: Install Cross Compilers
               run: |
                   sudo apt-get update
-                  sudo apt-get install -y gcc-multilib gcc-mingw-w64 gcc-aarch64-linux-gnu
+                  sudo apt-get install -y gcc-multilib gcc-mingw-w64 gcc-aarch64-linux-gnu upx
 
             - name: Build Multi-Platform Binaries
               run: |
@@ -64,14 +64,8 @@ jobs:
 
                       echo "Building for ${GOOS}/${GOARCH}..."
                       
-                      EXTRA_FLAGS=""
-                      if [ "$GOOS" = "linux" ] && [ "$GOARCH" = "386" ]; then
-                          EXTRA_FLAGS="-buildmode=pie"
-                      fi
-
                       CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build \
                           -trimpath \
-                          $EXTRA_FLAGS \
                           -ldflags "-s -w \
                               -X 'github.com/bestk/scan_ssh/pkg/version.Version=${VERSION}' \
                               -X 'github.com/bestk/scan_ssh/pkg/version.CommitHash=${GIT_COMMIT}' \
@@ -83,11 +77,8 @@ jobs:
                           exit 1
                       fi
 
-                      if [ "$GOOS" = "linux" ]; then
-                          if command -v strip >/dev/null 2>&1; then
-                              strip "build/$output_name" || true
-                          fi
-                      fi
+                      echo "Compressing binary with UPX..."
+                      upx --best --lzma "build/$output_name"
                   done
 
             - name: Create Release

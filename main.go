@@ -127,7 +127,7 @@ func main() {
 	fmt.Println("====================================")
 	fmt.Println("         SSH服务扫描器 v1.0")
 	fmt.Println("====================================")
-	fmt.Printf(" 作者: https://github.com/bestk/scanssh\n")
+	fmt.Printf(" 作者: https://github.com/bestk/scan_ssh\n")
 	fmt.Printf(" 时间: %s\n", version.BuildTime)
 	fmt.Printf(" 版本: %s\n", version.Version)
 	fmt.Printf(" HASH: %s\n", version.CommitHash)
